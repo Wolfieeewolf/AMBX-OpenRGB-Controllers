@@ -59,7 +59,7 @@ AMBXController::AMBXController(const char* path)
             uint8_t address = libusb_get_device_address(device);
             
             char device_id[32];
-            sprintf(device_id, "Bus %d Addr %d", bus, address);
+            snprintf(device_id, sizeof(device_id), "Bus %d Addr %d", bus, address);
             location = std::string("USB amBX: ") + device_id;
             
             // Try to open this device
@@ -121,7 +121,7 @@ AMBXController::AMBXController(const char* path)
     }
     
     // Turn off all lights initially
-    SetAllColors(ToRGBColor(0, 0, 0));
+    SetAllColors(0x00000000);
 }
 
 AMBXController::~AMBXController()
@@ -131,7 +131,7 @@ AMBXController::~AMBXController()
     {
         try
         {
-            SetAllColors(ToRGBColor(0, 0, 0));
+            SetAllColors(0x00000000);
         }
         catch(...) {}
     }
@@ -266,9 +266,6 @@ void AMBXController::SetSingleColor(unsigned int light, unsigned char red, unsig
         return;
     }
     
-    // Log the color change for debugging purposes
-    LOG_DEBUG("Setting AMBX light 0x%02X to RGB: %d,%d,%d", light, red, green, blue);
-    
     unsigned char color_buf[6];
     
     // Set up message packet
@@ -332,12 +329,6 @@ void AMBXController::SetLEDColor(unsigned int led, RGBColor color)
         LOG_ERROR("Cannot set LED color - AMBX device not initialized");
         return;
     }
-    
-    LOG_DEBUG("Setting LED 0x%02X to RGB: %d,%d,%d", 
-             led, 
-             RGBGetRValue(color), 
-             RGBGetGValue(color), 
-             RGBGetBValue(color));
              
     // Validate LED ID before setting color
     if(led != AMBX_LIGHT_LEFT && 

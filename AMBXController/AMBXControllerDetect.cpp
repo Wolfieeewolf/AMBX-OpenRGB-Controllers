@@ -10,6 +10,7 @@
 #include "Detector.h"
 #include "LogManager.h"
 #include "AMBXController.h"
+#include "RGBController.h"
 #include "RGBController_AMBX.h"
 #include "ResourceManager.h"
 
@@ -35,110 +36,68 @@
 
 void DetectAMBXControllers()
 {
-    LOG_INFO("Detecting Philips amBX devices...");
-    
-    /*-------------------------------------*\
-    | Initialize libusb                     |
-    \*-------------------------------------*/
-    libusb_context* context = nullptr;
-    
-    // Initialize libusb for this detection
-    int init_result = libusb_init(&context);
-    if(init_result != LIBUSB_SUCCESS)
+    libusb_context* ctx = NULL;
+
+    if(libusb_init(&ctx) < 0)
     {
-        LOG_ERROR("Failed to initialize libusb: %s", libusb_error_name(init_result));
         return;
     }
-    
-    // Get device list
-    libusb_device** device_list;
-    ssize_t device_count = libusb_get_device_list(context, &device_list);
-    
-    if(device_count < 0)
+
+    libusb_device** devs;
+    libusb_device* dev;
+    libusb_device_handle* dev_handle;
+    ssize_t num_devs;
+
+    num_devs = libusb_get_device_list(ctx, &devs);
+
+    if(num_devs <= 0)
     {
-        LOG_ERROR("Failed to get USB device list: %s", libusb_error_name(static_cast<int>(device_count)));
-        libusb_exit(context);
         return;
     }
-    
-    int detected_devices = 0;
-    
-    // Enumerate devices to find AMBX
-    for(ssize_t i = 0; i < device_count; i++)
+
+    for(ssize_t i = 0; i < num_devs; i++)
     {
-        libusb_device* device = device_list[i];
-        struct libusb_device_descriptor descriptor;
-        
-        if(libusb_get_device_descriptor(device, &descriptor) != LIBUSB_SUCCESS)
+        dev = devs[i];
+
+        libusb_device_descriptor desc;
+        if(libusb_get_device_descriptor(dev, &desc) != 0)
         {
             continue;
         }
-        
-        if(descriptor.idVendor == AMBX_VID && descriptor.idProduct == AMBX_PID)
+
+        if(desc.idVendor == AMBX_VID && desc.idProduct == AMBX_PID)
         {
-            // Get device path
-            uint8_t bus = libusb_get_bus_number(device);
-            uint8_t address = libusb_get_device_address(device);
-            
+            uint8_t bus = libusb_get_bus_number(dev);
+            uint8_t address = libusb_get_device_address(dev);
+
             char device_path[64];
-            sprintf(device_path, "%d-%d", bus, address);
-            
-            LOG_INFO("Found amBX device at bus %d, address %d", bus, address);
-            
-            // Create controller for this device
-            try
-            {
-                AMBXController* controller = new AMBXController(device_path);
-                
-                // Only register controller if it initialized successfully
-                if(controller->IsInitialized())
-                {
-                    RGBController_AMBX* rgb_controller = new RGBController_AMBX(controller);
-                    ResourceManager::get()->RegisterRGBController(rgb_controller);
-                    detected_devices++;
-                    
-                    LOG_INFO("Successfully added amBX device at %s", device_path);
-                }
-                else
-                {
-                    LOG_WARNING("Found amBX device at %s but initialization failed", device_path);
-                    delete controller;
-                }
-            }
-            catch(const std::exception& e)
-            {
-                LOG_ERROR("Exception creating AMBX controller at %s: %s", device_path, e.what());
-            }
-        }
-    }
-    
-    if(detected_devices == 0)
-    {
-        // Check if device exists but can't be accessed
-        for(ssize_t i = 0; i < device_count; i++)
-        {
-            libusb_device* device = device_list[i];
-            struct libusb_device_descriptor descriptor;
-            
-            if(libusb_get_device_descriptor(device, &descriptor) != LIBUSB_SUCCESS)
+            snprintf(device_path, 64, "%d-%d", bus, address);
+
+            int ret = libusb_open(dev, &dev_handle);
+
+            if(ret < 0)
             {
                 continue;
             }
-            
-            if(descriptor.idVendor == AMBX_VID && descriptor.idProduct == AMBX_PID)
+
+            libusb_close(dev_handle);
+
+            AMBXController* controller = new AMBXController(device_path);
+
+            if(controller->IsInitialized())
             {
-                LOG_WARNING("AMBX device found but couldn't be accessed - check permissions");
-                LOG_WARNING("On Windows, please install WinUSB driver using Zadig tool");
-                LOG_WARNING("On Linux, ensure udev rules are properly installed");
-                break;
+                RGBController_AMBX* rgb_controller = new RGBController_AMBX(controller);
+                ResourceManager::get()->RegisterRGBController(rgb_controller);
+            }
+            else
+            {
+                delete controller;
             }
         }
     }
-    
-    libusb_free_device_list(device_list, 1);
-    libusb_exit(context);
-    
-    LOG_INFO("AMBX detection completed. Found %d devices.", detected_devices);
+
+    libusb_free_device_list(devs, 1);
+    libusb_exit(ctx);
 }
 
 REGISTER_DETECTOR("Philips amBX", DetectAMBXControllers);

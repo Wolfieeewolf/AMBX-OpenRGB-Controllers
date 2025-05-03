@@ -21,6 +21,7 @@ static int amBX_device_count = 0;
     @direct :white_check_mark:
     @effects :x:
     @detectors DetectAMBXControllers
+    @type_detection USB
     @comment The Philips amBX Gaming lights system includes left and right
     lights and a wall-washer bar with three zones.
 \*-------------------------------------------------------------------*/
