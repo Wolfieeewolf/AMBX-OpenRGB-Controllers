@@ -22,23 +22,23 @@
 
 RGBController_MadCatzCyborg::RGBController_MadCatzCyborg(MadCatzCyborgController* controller_ptr)
 {
-    controller      = controller_ptr;
+    controller  = controller_ptr;
     
-    name            = "MadCatz Cyborg Gaming Light";
-    vendor          = "MadCatz";
-    type            = DEVICE_TYPE_ACCESSORY;
-    description     = "MadCatz Cyborg Gaming Light";
-    location        = controller->GetDeviceLocation();
-    serial          = controller->GetSerialString();
+    name        = "MadCatz Cyborg Gaming Light";
+    vendor      = "MadCatz";
+    type        = DEVICE_TYPE_ACCESSORY;
+    description = "MadCatz Cyborg Gaming Light";
+    location    = controller->GetDeviceLocation();
+    serial      = controller->GetSerialString();
     
     mode Direct;
-    Direct.name       = "Direct";
-    Direct.value      = 0;
-    Direct.flags      = MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_BRIGHTNESS;
-    Direct.color_mode = MODE_COLORS_PER_LED;
+    Direct.name           = "Direct";
+    Direct.value          = 0;
+    Direct.flags          = MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_BRIGHTNESS;
+    Direct.color_mode     = MODE_COLORS_PER_LED;
     Direct.brightness_min = 0;
     Direct.brightness_max = 100;
-    Direct.brightness = 100;
+    Direct.brightness     = 100;
     modes.push_back(Direct);
     
     SetupZones();
@@ -55,12 +55,12 @@ void RGBController_MadCatzCyborg::SetupZones()
 {
     zone cyborg_zone;
     
-    cyborg_zone.name          = "Cyborg";
-    cyborg_zone.type          = ZONE_TYPE_SINGLE;
-    cyborg_zone.leds_min      = 1;
-    cyborg_zone.leds_max      = 1;
-    cyborg_zone.leds_count    = 1;
-    cyborg_zone.matrix_map    = NULL;
+    cyborg_zone.name       = "Cyborg";
+    cyborg_zone.type       = ZONE_TYPE_SINGLE;
+    cyborg_zone.leds_min   = 1;
+    cyborg_zone.leds_max   = 1;
+    cyborg_zone.leds_count = 1;
+    cyborg_zone.matrix_map = NULL;
     
     zones.push_back(cyborg_zone);
     

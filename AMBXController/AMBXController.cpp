@@ -9,26 +9,29 @@
 
 #include "AMBXController.h"
 #include "LogManager.h"
+#include "StringUtils.h"
 #include <cstring>
 #include <thread>
 #include <chrono>
 
 AMBXController::AMBXController(const char* path)
 {
-    initialized = false;
+    initialized      = false;
     interface_claimed = false;
-    usb_context = nullptr;
-    dev_handle = nullptr;
+    usb_context      = nullptr;
+    dev_handle       = nullptr;
     
     location = "USB amBX: ";
     location += path;
     
+    // Initialize libusb in this instance
     int libusb_result = libusb_init(&usb_context);
     if(libusb_result != LIBUSB_SUCCESS)
     {
         return;
     }
     
+    // Get the device list
     libusb_device** device_list;
     ssize_t device_count = libusb_get_device_list(usb_context, &device_list);
     
@@ -54,44 +57,58 @@ AMBXController::AMBXController(const char* path)
             
             char device_id[32];
             snprintf(device_id, sizeof(device_id), "Bus %d Addr %d", bus, address);
-            location = std::string("USB amBX: ") + device_id;
             
-            int result = libusb_open(device, &dev_handle);
-            if(result != LIBUSB_SUCCESS)
+            // Check if this is the device we're looking for based on path
+            char current_path[32];
+            snprintf(current_path, sizeof(current_path), "%d-%d", bus, address);
+            
+            if(strcmp(path, current_path) == 0)
             {
-                continue;
-            }
-            
-            if(libusb_kernel_driver_active(dev_handle, 0))
-            {
-                libusb_detach_kernel_driver(dev_handle, 0);
-            }
-            
-            libusb_set_auto_detach_kernel_driver(dev_handle, 1);
-            
-            result = libusb_claim_interface(dev_handle, 0);
-            if(result != LIBUSB_SUCCESS)
-            {
-                libusb_close(dev_handle);
-                dev_handle = nullptr;
-                continue;
-            }
-            
-            interface_claimed = true;
-            
-            if(desc.iSerialNumber != 0)
-            {
-                unsigned char serial_str[256];
-                int serial_result = libusb_get_string_descriptor_ascii(dev_handle, desc.iSerialNumber, 
-                                                                       serial_str, sizeof(serial_str));
-                if(serial_result > 0)
+                location = std::string("USB amBX: ") + device_id;
+                
+                // Try to open this device
+                int result = libusb_open(device, &dev_handle);
+                if(result != LIBUSB_SUCCESS)
                 {
-                    serial = std::string(reinterpret_cast<char*>(serial_str), serial_result);
+                    continue;
                 }
+                
+                // Try to detach the kernel driver if attached
+                if(libusb_kernel_driver_active(dev_handle, 0))
+                {
+                    libusb_detach_kernel_driver(dev_handle, 0);
+                }
+                
+                // Set auto-detach for Windows compatibility
+                libusb_set_auto_detach_kernel_driver(dev_handle, 1);
+                
+                // Claim the interface
+                result = libusb_claim_interface(dev_handle, 0);
+                if(result != LIBUSB_SUCCESS)
+                {
+                    libusb_close(dev_handle);
+                    dev_handle = nullptr;
+                    continue;
+                }
+                
+                interface_claimed = true;
+                
+                // Get string descriptor for serial number if available
+                if(desc.iSerialNumber != 0)
+                {
+                    unsigned char serial_str[256];
+                    int serial_result = libusb_get_string_descriptor_ascii(dev_handle, desc.iSerialNumber, 
+                                                                         serial_str, sizeof(serial_str));
+                    if(serial_result > 0)
+                    {
+                        serial = std::string(reinterpret_cast<char*>(serial_str), serial_result);
+                    }
+                }
+                
+                // Successfully opened and claimed the device
+                initialized = true;
+                break;
             }
-            
-            initialized = true;
-            break;
         }
     }
     
@@ -99,9 +116,8 @@ AMBXController::AMBXController(const char* path)
     
     if(initialized)
     {
-        // Initialize all LEDs to off
-        unsigned int leds[] = 
-        { 
+        // Turn off all lights initially
+        unsigned int led_ids[5] = { 
             AMBX_LIGHT_LEFT,
             AMBX_LIGHT_RIGHT,
             AMBX_LIGHT_WALL_LEFT,
@@ -109,8 +125,8 @@ AMBXController::AMBXController(const char* path)
             AMBX_LIGHT_WALL_RIGHT
         };
         
-        RGBColor colors[] = { 0, 0, 0, 0, 0 };
-        SetLEDColors(leds, colors, 5);
+        RGBColor colors[5] = { 0, 0, 0, 0, 0 };
+        SetLEDColors(led_ids, colors, 5);
     }
 }
 
@@ -120,8 +136,8 @@ AMBXController::~AMBXController()
     {
         try
         {
-            unsigned int leds[] = 
-            { 
+            // Turn off all lights before closing
+            unsigned int led_ids[5] = { 
                 AMBX_LIGHT_LEFT,
                 AMBX_LIGHT_RIGHT,
                 AMBX_LIGHT_WALL_LEFT,
@@ -129,20 +145,22 @@ AMBXController::~AMBXController()
                 AMBX_LIGHT_WALL_RIGHT
             };
             
-            RGBColor colors[] = { 0, 0, 0, 0, 0 };
-            SetLEDColors(leds, colors, 5);
+            RGBColor colors[5] = { 0, 0, 0, 0, 0 };
+            SetLEDColors(led_ids, colors, 5);
         }
         catch(...) {}
     }
     
     if(dev_handle != nullptr)
     {
+        // Release the interface if claimed
         if(interface_claimed)
         {
             libusb_release_interface(dev_handle, 0);
             interface_claimed = false;
         }
         
+        // Close the device
         libusb_close(dev_handle);
         dev_handle = nullptr;
     }
@@ -187,14 +205,14 @@ void AMBXController::SetLEDColor(unsigned int led, RGBColor color)
         return;
     }
     
-    unsigned char color_buf[6];
-    
-    color_buf[0] = AMBX_PACKET_HEADER;
-    color_buf[1] = led;
-    color_buf[2] = AMBX_SET_COLOR;
-    color_buf[3] = RGBGetRValue(color);
-    color_buf[4] = RGBGetGValue(color);
-    color_buf[5] = RGBGetBValue(color);
+    unsigned char color_buf[6] = { 
+        AMBX_PACKET_HEADER, 
+        static_cast<unsigned char>(led), 
+        AMBX_SET_COLOR,
+        RGBGetRValue(color),
+        RGBGetGValue(color),
+        RGBGetBValue(color)
+    };
 
     SendPacket(color_buf, 6);
     
@@ -203,6 +221,7 @@ void AMBXController::SetLEDColor(unsigned int led, RGBColor color)
 
 void AMBXController::SetLEDColors(unsigned int* leds, RGBColor* colors, unsigned int count)
 {
+    // Use C-style indexed for loop as per CONTRIBUTING.md
     for(unsigned int i = 0; i < count; i++)
     {
         SetLEDColor(leds[i], colors[i]);

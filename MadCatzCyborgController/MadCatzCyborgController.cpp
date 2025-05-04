@@ -9,6 +9,7 @@
 
 #include "MadCatzCyborgController.h"
 #include "LogManager.h"
+#include "StringUtils.h"
 #include <cstring>
 
 MadCatzCyborgController::MadCatzCyborgController(hid_device* dev_handle, const char* path)
@@ -37,10 +38,7 @@ std::string MadCatzCyborgController::GetSerialString()
         return("");
     }
 
-    std::wstring return_wstring = serial_string;
-    std::string return_string(return_wstring.begin(), return_wstring.end());
-
-    return(return_string);
+    return(StringUtils::wstring_to_string(serial_string));
 }
 
 void MadCatzCyborgController::Initialize()
@@ -61,7 +59,18 @@ void MadCatzCyborgController::SetLEDColor(unsigned char red, unsigned char green
     }
     
     // Format: [CMD_COLOR][0x00][R][G][B][0x00][0x00][0x00][0x00]
-    unsigned char usb_buf[9] = { CMD_COLOR, 0x00, red, green, blue, 0x00, 0x00, 0x00, 0x00 };
+    unsigned char usb_buf[9] = { 
+        CMD_COLOR, 
+        0x00, 
+        red, 
+        green, 
+        blue, 
+        0x00, 
+        0x00, 
+        0x00, 
+        0x00 
+    };
+    
     hid_send_feature_report(dev, usb_buf, 9);
 }
 
