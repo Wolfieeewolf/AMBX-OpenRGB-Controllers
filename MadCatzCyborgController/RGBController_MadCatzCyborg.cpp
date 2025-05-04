@@ -9,16 +9,16 @@
 
 #include "RGBController_MadCatzCyborg.h"
 
-/**------------------------------------------------------------------*\
+/**--------------------------------------------------------*\
     @name MadCatz Cyborg Gaming Light
-    @category LEDStrip
+    @category Accessory
     @type USB
     @save :x:
     @direct :white_check_mark:
     @effects :x:
     @detectors DetectMadCatzCyborgControllers
-    @comment The MadCatz Cyborg Gaming Light supports setting colors but no effects.
-\*-------------------------------------------------------------------*/
+    @comment The MadCatz Cyborg Gaming Light is an ambient lighting device.
+\*---------------------------------------------------------*/
 
 RGBController_MadCatzCyborg::RGBController_MadCatzCyborg(MadCatzCyborgController* controller_ptr)
 {
@@ -26,8 +26,8 @@ RGBController_MadCatzCyborg::RGBController_MadCatzCyborg(MadCatzCyborgController
     
     name            = "MadCatz Cyborg Gaming Light";
     vendor          = "MadCatz";
-    type            = DEVICE_TYPE_LEDSTRIP;
-    description     = "MadCatz Cyborg Gaming Light Device";
+    type            = DEVICE_TYPE_ACCESSORY;
+    description     = "MadCatz Cyborg Gaming Light";
     location        = controller->GetDeviceLocation();
     serial          = controller->GetSerialString();
     
@@ -38,12 +38,11 @@ RGBController_MadCatzCyborg::RGBController_MadCatzCyborg(MadCatzCyborgController
     Direct.color_mode = MODE_COLORS_PER_LED;
     Direct.brightness_min = 0;
     Direct.brightness_max = 100;
-    Direct.brightness = 100;  // Start at full brightness
+    Direct.brightness = 100;
     modes.push_back(Direct);
     
     SetupZones();
     
-    // Set initial intensity (brightness)
     controller->SetIntensity(modes[active_mode].brightness);
 }
 
@@ -66,9 +65,7 @@ void RGBController_MadCatzCyborg::SetupZones()
     zones.push_back(cyborg_zone);
     
     led cyborg_led;
-    
-    cyborg_led.name           = "Cyborg LED";
-    
+    cyborg_led.name = "LED";
     leds.push_back(cyborg_led);
     
     SetupColors();
@@ -76,7 +73,7 @@ void RGBController_MadCatzCyborg::SetupZones()
 
 void RGBController_MadCatzCyborg::ResizeZone(int /*zone*/, int /*new_size*/)
 {
-    // This device has a fixed number of LEDs, so this function does nothing
+    // Single LED device - nothing to resize
 }
 
 void RGBController_MadCatzCyborg::DeviceUpdateLEDs()

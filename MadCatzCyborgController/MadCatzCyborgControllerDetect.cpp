@@ -1,5 +1,5 @@
 /*---------------------------------------------------------*\
-| MadCatzCyborgControllerDetect.cpp                          |
+| MadCatzCyborgControllerDetect.cpp                         |
 |                                                           |
 |   Detector for MadCatz Cyborg Gaming Light                |
 |                                                           |
@@ -38,7 +38,9 @@ void DetectMadCatzCyborgControllers(hid_device_info* info, const std::string& na
         controller->Initialize();
         
         RGBController_MadCatzCyborg* rgb_controller = new RGBController_MadCatzCyborg(controller);
-        rgb_controller->name = name;
+        
+        // Include device path in name to differentiate multiple devices
+        rgb_controller->name = name + " at " + std::string(info->path);
         
         ResourceManager::get()->RegisterRGBController(rgb_controller);
     }
