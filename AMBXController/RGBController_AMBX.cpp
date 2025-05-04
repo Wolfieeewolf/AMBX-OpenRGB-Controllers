@@ -8,7 +8,6 @@
 \*---------------------------------------------------------*/
 
 #include "RGBController_AMBX.h"
-#include "LogManager.h"
 
 // Static counter for numbering multiple devices
 static int amBX_device_count = 0;
@@ -21,14 +20,13 @@ static int amBX_device_count = 0;
     @direct :white_check_mark:
     @effects :x:
     @detectors DetectAMBXControllers
-    @type_detection USB
     @comment The Philips amBX Gaming lights system includes left and right
     lights and a wall-washer bar with three zones.
 \*-------------------------------------------------------------------*/
 
 RGBController_AMBX::RGBController_AMBX(AMBXController* controller_ptr)
 {
-    controller          = controller_ptr;
+    controller = controller_ptr;
 
     // Assign a sequential number to each device
     int device_idx = amBX_device_count++;
@@ -43,21 +41,18 @@ RGBController_AMBX::RGBController_AMBX(AMBXController* controller_ptr)
         name = "Philips amBX " + std::to_string(device_idx + 1);
     }
     
-    
-    vendor              = "Philips";
-    type                = DEVICE_TYPE_ACCESSORY;
-    description         = "Philips amBX Gaming Device";
-    location            = controller->GetDeviceLocation();
-    serial              = controller->GetSerialString();
+    vendor = "Philips";
+    type = DEVICE_TYPE_ACCESSORY;
+    description = "Philips amBX Gaming Device";
+    location = controller->GetDeviceLocation();
+    serial = controller->GetSerialString();
 
     mode Direct;
-    Direct.name         = "Direct";
-    Direct.value        = 0;
-    Direct.flags        = MODE_FLAG_HAS_PER_LED_COLOR;
-    Direct.color_mode   = MODE_COLORS_PER_LED;
+    Direct.name = "Direct";
+    Direct.value = 0;
+    Direct.flags = MODE_FLAG_HAS_PER_LED_COLOR;
+    Direct.color_mode = MODE_COLORS_PER_LED;
     modes.push_back(Direct);
-    
-    // No additional controls needed - we're just handling lighting
 
     SetupZones();
 }
@@ -66,7 +61,6 @@ RGBController_AMBX::~RGBController_AMBX()
 {
     delete controller;
     
-    // Decrement the counter when a device is removed
     if(amBX_device_count > 0)
     {
         amBX_device_count--;
@@ -75,57 +69,49 @@ RGBController_AMBX::~RGBController_AMBX()
 
 void RGBController_AMBX::SetupZones()
 {
-    /*-------------------------------------------------*\
-    | Set up zones                                      |
-    \*-------------------------------------------------*/
+    // Set up zones
     zone side_lights_zone;
-    side_lights_zone.name          = "Side Lights";
-    side_lights_zone.type          = ZONE_TYPE_LINEAR;
-    side_lights_zone.leds_min      = 2;
-    side_lights_zone.leds_max      = 2;
-    side_lights_zone.leds_count    = 2;
-    side_lights_zone.matrix_map    = NULL;
+    side_lights_zone.name = "Side Lights";
+    side_lights_zone.type = ZONE_TYPE_LINEAR;
+    side_lights_zone.leds_min = 2;
+    side_lights_zone.leds_max = 2;
+    side_lights_zone.leds_count = 2;
+    side_lights_zone.matrix_map = NULL;
     zones.push_back(side_lights_zone);
     
     zone wallwasher_zone;
-    wallwasher_zone.name          = "Wallwasher";
-    wallwasher_zone.type          = ZONE_TYPE_LINEAR;
-    wallwasher_zone.leds_min      = 3;
-    wallwasher_zone.leds_max      = 3;
-    wallwasher_zone.leds_count    = 3;
-    wallwasher_zone.matrix_map    = NULL;
+    wallwasher_zone.name = "Wallwasher";
+    wallwasher_zone.type = ZONE_TYPE_LINEAR;
+    wallwasher_zone.leds_min = 3;
+    wallwasher_zone.leds_max = 3;
+    wallwasher_zone.leds_count = 3;
+    wallwasher_zone.matrix_map = NULL;
     zones.push_back(wallwasher_zone);
-    
-    // No additional zones needed - just the lighting zones
 
-    /*-------------------------------------------------*\
-    | Set up LEDs                                       |
-    \*-------------------------------------------------*/
-    // Side lights LEDs
+    // Set up LEDs
     led left_light;
-    left_light.name       = "Left";
-    left_light.value      = AMBX_LIGHT_LEFT;
+    left_light.name = "Left";
+    left_light.value = AMBX_LIGHT_LEFT;
     leds.push_back(left_light);
 
     led right_light;
-    right_light.name      = "Right";
-    right_light.value     = AMBX_LIGHT_RIGHT;
+    right_light.name = "Right";
+    right_light.value = AMBX_LIGHT_RIGHT;
     leds.push_back(right_light);
 
-    // Wallwasher zone LEDs
     led wall_left;
-    wall_left.name          = "Wall Left";
-    wall_left.value         = AMBX_LIGHT_WALL_LEFT;
+    wall_left.name = "Wall Left";
+    wall_left.value = AMBX_LIGHT_WALL_LEFT;
     leds.push_back(wall_left);
 
     led wall_center;
-    wall_center.name        = "Wall Center";
-    wall_center.value       = AMBX_LIGHT_WALL_CENTER;
+    wall_center.name = "Wall Center";
+    wall_center.value = AMBX_LIGHT_WALL_CENTER;
     leds.push_back(wall_center);
 
     led wall_right;
-    wall_right.name         = "Wall Right";
-    wall_right.value        = AMBX_LIGHT_WALL_RIGHT;
+    wall_right.name = "Wall Right";
+    wall_right.value = AMBX_LIGHT_WALL_RIGHT;
     leds.push_back(wall_right);
 
     SetupColors();
@@ -133,9 +119,7 @@ void RGBController_AMBX::SetupZones()
 
 void RGBController_AMBX::ResizeZone(int /*zone*/, int /*new_size*/)
 {
-    /*-------------------------------------------------*\
-    | This device does not support resizing zones       |
-    \*-------------------------------------------------*/
+    // This device does not support resizing zones
 }
 
 void RGBController_AMBX::DeviceUpdateLEDs()
@@ -145,7 +129,6 @@ void RGBController_AMBX::DeviceUpdateLEDs()
         return;
     }
     
-    // Use the batch update method for better performance
     unsigned int led_values[5];
     RGBColor led_colors[5];
     
@@ -165,9 +148,6 @@ void RGBController_AMBX::UpdateZoneLEDs(int zone)
         return;
     }
     
-    /*-------------------------------------------------*\
-    | Get indices for zones                             |
-    \*-------------------------------------------------*/
     unsigned int start_idx = 0;
     unsigned int zone_size = 0;
     
@@ -182,9 +162,6 @@ void RGBController_AMBX::UpdateZoneLEDs(int zone)
         start_idx += zones[z_idx].leds_count;
     }
     
-    /*-------------------------------------------------*\
-    | Update LEDs in the zone with batch update         |
-    \*-------------------------------------------------*/
     unsigned int led_values[5];
     RGBColor led_colors[5];
     
@@ -220,12 +197,7 @@ void RGBController_AMBX::DeviceUpdateMode()
     DeviceUpdateLEDs();
 }
 
-/*-------------------------------------------------*\
-| Function to put the device in direct control mode  |
-\*-------------------------------------------------*/
 void RGBController_AMBX::SetCustomMode()
 {
     active_mode = 0;
 }
-
-

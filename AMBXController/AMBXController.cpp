@@ -23,25 +23,20 @@ AMBXController::AMBXController(const char* path)
     location = "USB amBX: ";
     location += path;
     
-    // Initialize libusb in this instance
     int libusb_result = libusb_init(&usb_context);
     if(libusb_result != LIBUSB_SUCCESS)
     {
-        LOG_ERROR("Failed to initialize libusb: %s", libusb_error_name(libusb_result));
         return;
     }
     
-    // Get the device list
     libusb_device** device_list;
     ssize_t device_count = libusb_get_device_list(usb_context, &device_list);
     
     if(device_count < 0)
     {
-        LOG_ERROR("Failed to get USB device list: %s", libusb_error_name(static_cast<int>(device_count)));
         return;
     }
     
-    // Find our device in the list
     for(ssize_t i = 0; i < device_count; i++)
     {
         libusb_device* device = device_list[i];
@@ -54,7 +49,6 @@ AMBXController::AMBXController(const char* path)
         
         if(desc.idVendor == AMBX_VID && desc.idProduct == AMBX_PID)
         {
-            // Get bus and address for identifying multiple devices
             uint8_t bus = libusb_get_bus_number(device);
             uint8_t address = libusb_get_device_address(device);
             
@@ -62,30 +56,22 @@ AMBXController::AMBXController(const char* path)
             snprintf(device_id, sizeof(device_id), "Bus %d Addr %d", bus, address);
             location = std::string("USB amBX: ") + device_id;
             
-            // Try to open this device
             int result = libusb_open(device, &dev_handle);
-            
             if(result != LIBUSB_SUCCESS)
             {
-                LOG_WARNING("Failed to open AMBX device: %s", libusb_error_name(result));
                 continue;
             }
             
-            // Try to detach the kernel driver if attached
             if(libusb_kernel_driver_active(dev_handle, 0))
             {
                 libusb_detach_kernel_driver(dev_handle, 0);
             }
             
-            // Set auto-detach for Windows compatibility
             libusb_set_auto_detach_kernel_driver(dev_handle, 1);
             
-            // Claim the interface - IMPORTANT: keep it claimed until destruction
             result = libusb_claim_interface(dev_handle, 0);
-            
             if(result != LIBUSB_SUCCESS)
             {
-                LOG_ERROR("Failed to claim interface: %s", libusb_error_name(result));
                 libusb_close(dev_handle);
                 dev_handle = nullptr;
                 continue;
@@ -93,7 +79,6 @@ AMBXController::AMBXController(const char* path)
             
             interface_claimed = true;
             
-            // Get string descriptor for serial number if available
             if(desc.iSerialNumber != 0)
             {
                 unsigned char serial_str[256];
@@ -105,7 +90,6 @@ AMBXController::AMBXController(const char* path)
                 }
             }
             
-            // Successfully opened and claimed the device
             initialized = true;
             break;
         }
@@ -113,39 +97,52 @@ AMBXController::AMBXController(const char* path)
     
     libusb_free_device_list(device_list, 1);
     
-    if(!initialized)
+    if(initialized)
     {
-        LOG_ERROR("Failed to initialize AMBX device - device not found or couldn't be accessed");
-        LOG_ERROR("Check USB connections and permissions");
-        return;
+        // Initialize all LEDs to off
+        unsigned int leds[] = 
+        { 
+            AMBX_LIGHT_LEFT,
+            AMBX_LIGHT_RIGHT,
+            AMBX_LIGHT_WALL_LEFT,
+            AMBX_LIGHT_WALL_CENTER,
+            AMBX_LIGHT_WALL_RIGHT
+        };
+        
+        RGBColor colors[] = { 0, 0, 0, 0, 0 };
+        SetLEDColors(leds, colors, 5);
     }
-    
-    // Turn off all lights initially
-    SetAllColors(0x00000000);
 }
 
 AMBXController::~AMBXController()
 {
-    // Turn off all lights before closing
     if(initialized)
     {
         try
         {
-            SetAllColors(0x00000000);
+            unsigned int leds[] = 
+            { 
+                AMBX_LIGHT_LEFT,
+                AMBX_LIGHT_RIGHT,
+                AMBX_LIGHT_WALL_LEFT,
+                AMBX_LIGHT_WALL_CENTER,
+                AMBX_LIGHT_WALL_RIGHT
+            };
+            
+            RGBColor colors[] = { 0, 0, 0, 0, 0 };
+            SetLEDColors(leds, colors, 5);
         }
         catch(...) {}
     }
     
     if(dev_handle != nullptr)
     {
-        // Release the interface if claimed
         if(interface_claimed)
         {
             libusb_release_interface(dev_handle, 0);
             interface_claimed = false;
         }
         
-        // Close the device
         libusb_close(dev_handle);
         dev_handle = nullptr;
     }
@@ -172,201 +169,42 @@ bool AMBXController::IsInitialized()
     return initialized;
 }
 
-
-
-
-
-/*---------------------------------------------------------*\
-| Function: SendPacket                                       |
-|                                                           |
-| Description: Sends a packet to the AMBX device            |
-|                                                           |  
-| Parameters:                                               |
-|   packet - Byte array containing the packet data          |
-|   size   - Size of the packet in bytes                    |
-|                                                           |
-| Returns: None                                             |
-\*---------------------------------------------------------*/
 void AMBXController::SendPacket(unsigned char* packet, unsigned int size)
 {
-    // Validate device initialization status
-    if(!initialized || dev_handle == nullptr)
+    if(!initialized || dev_handle == nullptr || !interface_claimed)
     {
-        LOG_ERROR("Device not initialized for AMBX");
         return;
     }
     
-    // Verify interface is claimed
-    if(!interface_claimed)
-    {
-        LOG_ERROR("USB interface not claimed for AMBX");
-        return;
-    }
-    
-    // Validate input parameters
-    if(packet == nullptr || size == 0)
-    {
-        LOG_ERROR("Invalid packet data or size for AMBX");
-        return;
-    }
-    
-    /*-------------------------------------------------------*\
-    | Send the packet to the device using interrupt transfer   |
-    | The timeout of 100ms is sufficient for most operations   |
-    \*-------------------------------------------------------*/
     int actual_length = 0;
-    int result = libusb_interrupt_transfer(dev_handle, AMBX_ENDPOINT_OUT, packet, size, &actual_length, 100);
-    
-    // Handle transfer errors
-    if(result != LIBUSB_SUCCESS)
-    {
-        LOG_ERROR("Failed to send interrupt transfer: %s", libusb_error_name(result));
-        return;
-    }
-    
-    // Verify all data was sent
-    if(actual_length != (int)size)
-    {
-        LOG_WARNING("Not all data sent to AMBX device: %d of %d bytes", actual_length, size);
-    }
+    libusb_interrupt_transfer(dev_handle, AMBX_ENDPOINT_OUT, packet, size, &actual_length, 100);
 }
 
-/*---------------------------------------------------------*\
-| Function: SetSingleColor                                   |
-|                                                           |
-| Description: Sets a single light to the specified RGB     |
-|              color value                                  |
-|                                                           |
-| Parameters:                                               |
-|   light - The ID of the light to set                      |
-|   red   - Red component (0-255)                           |
-|   green - Green component (0-255)                         |
-|   blue  - Blue component (0-255)                          |
-|                                                           |
-| Returns: None                                             |
-\*---------------------------------------------------------*/
-void AMBXController::SetSingleColor(unsigned int light, unsigned char red, unsigned char green, unsigned char blue)
+void AMBXController::SetLEDColor(unsigned int led, RGBColor color)
 {
-    // Validate device is initialized
     if(!initialized)
     {
-        LOG_ERROR("Cannot set light color - AMBX device not initialized");
-        return;
-    }
-
-    // Validate light ID
-    if(light != AMBX_LIGHT_LEFT && 
-       light != AMBX_LIGHT_RIGHT && 
-       light != AMBX_LIGHT_WALL_LEFT && 
-       light != AMBX_LIGHT_WALL_CENTER && 
-       light != AMBX_LIGHT_WALL_RIGHT && 
-       light != AMBX_LIGHT_ALL)
-    {
-        LOG_ERROR("Invalid AMBX light ID: 0x%02X", light);
         return;
     }
     
     unsigned char color_buf[6];
     
-    // Set up message packet
-    // Format: [Header][Light ID][Command][Red][Green][Blue]
     color_buf[0] = AMBX_PACKET_HEADER;
-    color_buf[1] = light;
+    color_buf[1] = led;
     color_buf[2] = AMBX_SET_COLOR;
-    color_buf[3] = red;
-    color_buf[4] = green;
-    color_buf[5] = blue;
+    color_buf[3] = RGBGetRValue(color);
+    color_buf[4] = RGBGetGValue(color);
+    color_buf[5] = RGBGetBValue(color);
 
-    // Send packet
     SendPacket(color_buf, 6);
     
-    // Add a small delay to ensure commands don't flood the device
-    // This improves reliability when sending multiple commands in sequence
     std::this_thread::sleep_for(std::chrono::milliseconds(2));
 }
 
-/*---------------------------------------------------------*\
-| Function: SetAllColors                                     |
-|                                                           |
-| Description: Sets all lights to the same color             |
-|                                                           |
-| Parameters:                                               |
-|   color - RGB color value to set for all lights           |
-|                                                           |
-| Returns: None                                             |
-\*---------------------------------------------------------*/
-void AMBXController::SetAllColors(RGBColor color)
-{
-    unsigned int leds[] = 
-    { 
-        AMBX_LIGHT_LEFT,
-        AMBX_LIGHT_RIGHT,
-        AMBX_LIGHT_WALL_LEFT,
-        AMBX_LIGHT_WALL_CENTER,
-        AMBX_LIGHT_WALL_RIGHT
-    };
-    
-    RGBColor colors[] = { color, color, color, color, color };
-    
-    SetLEDColors(leds, colors, 5);
-}
-
-/*---------------------------------------------------------*\
-| Function: SetLEDColor                                      |
-|                                                           |
-| Description: Sets a specific LED to a color                |
-|                                                           |
-| Parameters:                                               |
-|   led   - The ID of the LED to set                        |
-|   color - RGB color value                                 |
-|                                                           |
-| Returns: None                                             |
-\*---------------------------------------------------------*/
-void AMBXController::SetLEDColor(unsigned int led, RGBColor color)
-{
-    if(!initialized)
-    {
-        LOG_ERROR("Cannot set LED color - AMBX device not initialized");
-        return;
-    }
-             
-    // Validate LED ID before setting color
-    if(led != AMBX_LIGHT_LEFT && 
-       led != AMBX_LIGHT_RIGHT && 
-       led != AMBX_LIGHT_WALL_LEFT && 
-       led != AMBX_LIGHT_WALL_CENTER && 
-       led != AMBX_LIGHT_WALL_RIGHT && 
-       led != AMBX_LIGHT_ALL)
-    {
-        LOG_ERROR("Invalid AMBX LED ID: 0x%02X", led);
-        return;
-    }
-    
-    SetSingleColor(led, RGBGetRValue(color), RGBGetGValue(color), RGBGetBValue(color));
-}
-
-/*---------------------------------------------------------*\
-| Function: SetLEDColors                                     |
-|                                                           |
-| Description: Sets multiple LEDs to different colors        |
-|                                                           |
-| Parameters:                                               |
-|   leds   - Array of LED IDs                               |
-|   colors - Array of RGB color values                      |
-|   count  - Number of LEDs to set                          |
-|                                                           |
-| Returns: None                                             |
-\*---------------------------------------------------------*/
 void AMBXController::SetLEDColors(unsigned int* leds, RGBColor* colors, unsigned int count)
 {
-    // Simple approach: just send individual commands for each light
     for(unsigned int i = 0; i < count; i++)
     {
         SetLEDColor(leds[i], colors[i]);
-        
-        // Small delay between commands
-        std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
 }
-
-
