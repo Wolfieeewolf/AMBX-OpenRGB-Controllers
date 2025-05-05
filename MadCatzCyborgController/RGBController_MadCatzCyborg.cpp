@@ -43,7 +43,11 @@ RGBController_MadCatzCyborg::RGBController_MadCatzCyborg(MadCatzCyborgController
     
     SetupZones();
     
-    controller->SetIntensity(modes[active_mode].brightness);
+    try
+    {
+        controller->SetIntensity(modes[active_mode].brightness);
+    }
+    catch(...) {}
 }
 
 RGBController_MadCatzCyborg::~RGBController_MadCatzCyborg()
@@ -78,11 +82,15 @@ void RGBController_MadCatzCyborg::ResizeZone(int /*zone*/, int /*new_size*/)
 
 void RGBController_MadCatzCyborg::DeviceUpdateLEDs()
 {
-    if(colors.size() > 0)
+    try
     {
-        RGBColor color = colors[0];
-        controller->SetLEDColor(RGBGetRValue(color), RGBGetGValue(color), RGBGetBValue(color));
+        if(colors.size() > 0)
+        {
+            RGBColor color = colors[0];
+            controller->SetLEDColor(RGBGetRValue(color), RGBGetGValue(color), RGBGetBValue(color));
+        }
     }
+    catch(...) {}
 }
 
 void RGBController_MadCatzCyborg::UpdateZoneLEDs(int /*zone*/)
@@ -97,10 +105,14 @@ void RGBController_MadCatzCyborg::UpdateSingleLED(int /*led*/)
 
 void RGBController_MadCatzCyborg::DeviceUpdateMode()
 {
-    if(modes[active_mode].flags & MODE_FLAG_HAS_BRIGHTNESS)
+    try
     {
-        controller->SetIntensity(modes[active_mode].brightness);
+        if(modes[active_mode].flags & MODE_FLAG_HAS_BRIGHTNESS)
+        {
+            controller->SetIntensity(modes[active_mode].brightness);
+        }
     }
+    catch(...) {}
 }
 
 void RGBController_MadCatzCyborg::SetCustomMode()

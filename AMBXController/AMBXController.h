@@ -52,7 +52,6 @@ private:
     std::string              location;
     std::string              serial;
     bool                     initialized;
-    bool                     interface_claimed;
     
     void                    SendPacket(unsigned char* packet, unsigned int size);
 };

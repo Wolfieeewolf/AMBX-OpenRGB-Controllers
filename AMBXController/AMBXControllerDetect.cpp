@@ -8,11 +8,9 @@
 \*---------------------------------------------------------*/
 
 #include "Detector.h"
-#include "LogManager.h"
 #include "AMBXController.h"
 #include "RGBController.h"
 #include "RGBController_AMBX.h"
-#include "ResourceManager.h"
 
 #ifdef _WIN32
 #include "dependencies/libusb-1.0.27/include/libusb.h"
@@ -38,22 +36,19 @@ void DetectAMBXControllers()
     }
 
     libusb_device** devs;
-    libusb_device* dev;
-    libusb_device_handle* dev_handle;
-    ssize_t num_devs;
-
-    num_devs = libusb_get_device_list(ctx, &devs);
+    ssize_t num_devs = libusb_get_device_list(ctx, &devs);
 
     if(num_devs <= 0)
     {
+        libusb_exit(ctx);
         return;
     }
 
     for(ssize_t i = 0; i < num_devs; i++)
     {
-        dev = devs[i];
-
+        libusb_device* dev = devs[i];
         libusb_device_descriptor desc;
+        
         if(libusb_get_device_descriptor(dev, &desc) != 0)
         {
             continue;
@@ -63,19 +58,10 @@ void DetectAMBXControllers()
         {
             uint8_t bus = libusb_get_bus_number(dev);
             uint8_t address = libusb_get_device_address(dev);
+            char device_path[32];
+            snprintf(device_path, sizeof(device_path), "%d-%d", bus, address);
 
-            char device_path[64];
-            snprintf(device_path, 64, "%d-%d", bus, address);
-
-            int ret = libusb_open(dev, &dev_handle);
-
-            if(ret < 0)
-            {
-                continue;
-            }
-
-            libusb_close(dev_handle);
-
+            // Use the AMBXController to handle opening and initializing
             AMBXController* controller = new AMBXController(device_path);
 
             if(controller->IsInitialized())

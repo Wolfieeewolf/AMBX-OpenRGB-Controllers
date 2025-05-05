@@ -8,7 +8,6 @@
 \*---------------------------------------------------------*/
 
 #include "MadCatzCyborgController.h"
-#include "LogManager.h"
 #include "StringUtils.h"
 #include <cstring>
 
@@ -20,7 +19,11 @@ MadCatzCyborgController::MadCatzCyborgController(hid_device* dev_handle, const c
 
 MadCatzCyborgController::~MadCatzCyborgController()
 {
-    hid_close(dev);
+    if(dev != nullptr)
+    {
+        hid_close(dev);
+        dev = nullptr;
+    }
 }
 
 std::string MadCatzCyborgController::GetDeviceLocation()
@@ -43,12 +46,21 @@ std::string MadCatzCyborgController::GetSerialString()
 
 void MadCatzCyborgController::Initialize()
 {
-    // Enable the device
-    unsigned char enable_buf[2] = { CMD_ENABLE, 0x00 };
-    hid_send_feature_report(dev, enable_buf, 2);
-    
-    // Turn off lights initially
-    SetLEDColor(0, 0, 0);
+    if(dev == nullptr)
+    {
+        return;
+    }
+
+    try
+    {
+        // Enable the device
+        unsigned char enable_buf[2] = { CMD_ENABLE, 0x00 };
+        hid_send_feature_report(dev, enable_buf, 2);
+        
+        // Turn off lights initially
+        SetLEDColor(0, 0, 0);
+    }
+    catch(...) {}
 }
 
 void MadCatzCyborgController::SetLEDColor(unsigned char red, unsigned char green, unsigned char blue)
@@ -58,20 +70,24 @@ void MadCatzCyborgController::SetLEDColor(unsigned char red, unsigned char green
         return;
     }
     
-    // Format: [CMD_COLOR][0x00][R][G][B][0x00][0x00][0x00][0x00]
-    unsigned char usb_buf[9] = { 
-        CMD_COLOR, 
-        0x00, 
-        red, 
-        green, 
-        blue, 
-        0x00, 
-        0x00, 
-        0x00, 
-        0x00 
-    };
-    
-    hid_send_feature_report(dev, usb_buf, 9);
+    try
+    {
+        // Format: [CMD_COLOR][0x00][R][G][B][0x00][0x00][0x00][0x00]
+        unsigned char usb_buf[9] = { 
+            CMD_COLOR, 
+            0x00, 
+            red, 
+            green, 
+            blue, 
+            0x00, 
+            0x00, 
+            0x00, 
+            0x00 
+        };
+        
+        hid_send_feature_report(dev, usb_buf, 9);
+    }
+    catch(...) {}
 }
 
 void MadCatzCyborgController::SetIntensity(unsigned char intensity)
@@ -81,13 +97,17 @@ void MadCatzCyborgController::SetIntensity(unsigned char intensity)
         return;
     }
     
-    // Clamp intensity to 0-100
-    if(intensity > 100)
+    try
     {
-        intensity = 100;
+        // Clamp intensity to 0-100
+        if(intensity > 100)
+        {
+            intensity = 100;
+        }
+        
+        // Format: [CMD_INTENSITY][0x00][intensity_value]
+        unsigned char usb_buf[3] = { CMD_INTENSITY, 0x00, intensity };
+        hid_send_feature_report(dev, usb_buf, 3);
     }
-    
-    // Format: [CMD_INTENSITY][0x00][intensity_value]
-    unsigned char usb_buf[3] = { CMD_INTENSITY, 0x00, intensity };
-    hid_send_feature_report(dev, usb_buf, 3);
+    catch(...) {}
 }
