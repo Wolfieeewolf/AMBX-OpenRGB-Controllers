@@ -33,23 +33,12 @@ void DetectMadCatzCyborgControllers(hid_device_info* info, const std::string& na
     
     if(dev)
     {
-        try
-        {
-            MadCatzCyborgController* controller = new MadCatzCyborgController(dev, info->path);
-            controller->Initialize();
-            
-            RGBController_MadCatzCyborg* rgb_controller = new RGBController_MadCatzCyborg(controller);
-            
-            // Include device path in name to differentiate multiple devices
-            rgb_controller->name = name + " at " + std::string(info->path);
-            
-            ResourceManager::get()->RegisterRGBController(rgb_controller);
-        }
-        catch(...)
-        {
-            // If initialization fails, close the device
-            hid_close(dev);
-        }
+        MadCatzCyborgController* controller = new MadCatzCyborgController(dev, info->path);
+        controller->Initialize();
+        
+        RGBController_MadCatzCyborg* rgb_controller = new RGBController_MadCatzCyborg(controller);
+        
+        ResourceManager::get()->RegisterRGBController(rgb_controller);
     }
 }
 

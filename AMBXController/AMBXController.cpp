@@ -20,7 +20,7 @@ AMBXController::AMBXController(const char* path)
     usb_context      = nullptr;
     dev_handle       = nullptr;
     
-    location = "USB amBX: ";
+    location = "USB: ";
     location += path;
     
     // Initialize libusb in this instance
@@ -101,21 +101,6 @@ AMBXController::AMBXController(const char* path)
     }
     
     libusb_free_device_list(device_list, 1);
-    
-    if(initialized)
-    {
-        // Turn off all lights initially
-        unsigned int led_ids[5] = { 
-            AMBX_LIGHT_LEFT,
-            AMBX_LIGHT_RIGHT,
-            AMBX_LIGHT_WALL_LEFT,
-            AMBX_LIGHT_WALL_CENTER,
-            AMBX_LIGHT_WALL_RIGHT
-        };
-        
-        RGBColor colors[5] = { 0, 0, 0, 0, 0 };
-        SetLEDColors(led_ids, colors, 5);
-    }
 }
 
 AMBXController::~AMBXController()
@@ -125,7 +110,8 @@ AMBXController::~AMBXController()
         try
         {
             // Turn off all lights before closing
-            unsigned int led_ids[5] = { 
+            unsigned int led_ids[5] = 
+            { 
                 AMBX_LIGHT_LEFT,
                 AMBX_LIGHT_RIGHT,
                 AMBX_LIGHT_WALL_LEFT,
@@ -136,7 +122,9 @@ AMBXController::~AMBXController()
             RGBColor colors[5] = { 0, 0, 0, 0, 0 };
             SetLEDColors(led_ids, colors, 5);
         }
-        catch(...) {}
+        catch(...)
+        {
+        }
     }
     
     if(dev_handle != nullptr)
@@ -150,7 +138,9 @@ AMBXController::~AMBXController()
             libusb_close(dev_handle);
             dev_handle = nullptr;
         }
-        catch(...) {}
+        catch(...)
+        {
+        }
     }
     
     if(usb_context != nullptr)
@@ -160,7 +150,9 @@ AMBXController::~AMBXController()
             libusb_exit(usb_context);
             usb_context = nullptr;
         }
-        catch(...) {}
+        catch(...)
+        {
+        }
     }
 }
 
@@ -191,7 +183,9 @@ void AMBXController::SendPacket(unsigned char* packet, unsigned int size)
         int actual_length = 0;
         libusb_interrupt_transfer(dev_handle, AMBX_ENDPOINT_OUT, packet, size, &actual_length, 100);
     }
-    catch(...) {}
+    catch(...)
+    {
+    }
 }
 
 void AMBXController::SetLEDColor(unsigned int led, RGBColor color)
@@ -203,7 +197,8 @@ void AMBXController::SetLEDColor(unsigned int led, RGBColor color)
     
     try
     {
-        unsigned char color_buf[6] = { 
+        unsigned char color_buf[6] = 
+        { 
             AMBX_PACKET_HEADER, 
             static_cast<unsigned char>(led), 
             AMBX_SET_COLOR,
@@ -216,7 +211,9 @@ void AMBXController::SetLEDColor(unsigned int led, RGBColor color)
         
         std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
-    catch(...) {}
+    catch(...)
+    {
+    }
 }
 
 void AMBXController::SetLEDColors(unsigned int* leds, RGBColor* colors, unsigned int count)

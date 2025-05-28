@@ -51,16 +51,9 @@ void MadCatzCyborgController::Initialize()
         return;
     }
 
-    try
-    {
-        // Enable the device
-        unsigned char enable_buf[2] = { CMD_ENABLE, 0x00 };
-        hid_send_feature_report(dev, enable_buf, 2);
-        
-        // Turn off lights initially
-        SetLEDColor(0, 0, 0);
-    }
-    catch(...) {}
+    // Enable the device
+    unsigned char enable_buf[2] = { CMD_ENABLE, 0x00 };
+    hid_send_feature_report(dev, enable_buf, 2);
 }
 
 void MadCatzCyborgController::SetLEDColor(unsigned char red, unsigned char green, unsigned char blue)
@@ -70,24 +63,21 @@ void MadCatzCyborgController::SetLEDColor(unsigned char red, unsigned char green
         return;
     }
     
-    try
-    {
-        // Format: [CMD_COLOR][0x00][R][G][B][0x00][0x00][0x00][0x00]
-        unsigned char usb_buf[9] = { 
-            CMD_COLOR, 
-            0x00, 
-            red, 
-            green, 
-            blue, 
-            0x00, 
-            0x00, 
-            0x00, 
-            0x00 
-        };
-        
-        hid_send_feature_report(dev, usb_buf, 9);
-    }
-    catch(...) {}
+    // Format: [CMD_COLOR][0x00][R][G][B][0x00][0x00][0x00][0x00]
+    unsigned char usb_buf[9] = 
+    { 
+        CMD_COLOR, 
+        0x00, 
+        red, 
+        green, 
+        blue, 
+        0x00, 
+        0x00, 
+        0x00, 
+        0x00 
+    };
+    
+    hid_send_feature_report(dev, usb_buf, 9);
 }
 
 void MadCatzCyborgController::SetIntensity(unsigned char intensity)
@@ -97,17 +87,13 @@ void MadCatzCyborgController::SetIntensity(unsigned char intensity)
         return;
     }
     
-    try
+    // Clamp intensity to 0-100
+    if(intensity > 100)
     {
-        // Clamp intensity to 0-100
-        if(intensity > 100)
-        {
-            intensity = 100;
-        }
-        
-        // Format: [CMD_INTENSITY][0x00][intensity_value]
-        unsigned char usb_buf[3] = { CMD_INTENSITY, 0x00, intensity };
-        hid_send_feature_report(dev, usb_buf, 3);
+        intensity = 100;
     }
-    catch(...) {}
+    
+    // Format: [CMD_INTENSITY][0x00][intensity_value]
+    unsigned char usb_buf[3] = { CMD_INTENSITY, 0x00, intensity };
+    hid_send_feature_report(dev, usb_buf, 3);
 }

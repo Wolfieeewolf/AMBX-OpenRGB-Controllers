@@ -9,9 +9,6 @@
 
 #include "RGBController_AMBX.h"
 
-// Static counter for numbering multiple devices
-static int amBX_device_count = 0;
-
 /**------------------------------------------------------------------*\
     @name Philips amBX
     @category Accessory
@@ -28,19 +25,7 @@ RGBController_AMBX::RGBController_AMBX(AMBXController* controller_ptr)
 {
     controller = controller_ptr;
 
-    // Assign a sequential number to each device
-    int device_idx = amBX_device_count++;
-    
-    // First device gets no number, subsequent devices get numbered
-    if(device_idx == 0)
-    {
-        name = "Philips amBX";
-    }
-    else
-    {
-        name = "Philips amBX " + std::to_string(device_idx + 1);
-    }
-    
+    name        = "Philips amBX";
     vendor      = "Philips";
     type        = DEVICE_TYPE_ACCESSORY;
     description = "Philips amBX Gaming Device";
@@ -60,11 +45,6 @@ RGBController_AMBX::RGBController_AMBX(AMBXController* controller_ptr)
 RGBController_AMBX::~RGBController_AMBX()
 {
     delete controller;
-    
-    if(amBX_device_count > 0)
-    {
-        amBX_device_count--;
-    }
 }
 
 void RGBController_AMBX::SetupZones()
@@ -132,7 +112,6 @@ void RGBController_AMBX::DeviceUpdateLEDs()
     unsigned int led_values[5];
     RGBColor led_colors[5];
     
-    // Use C-style indexed for loop per CONTRIBUTING.md
     for(unsigned int led_idx = 0; led_idx < leds.size(); led_idx++)
     {
         led_values[led_idx] = leds[led_idx].value;
