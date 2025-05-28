@@ -27,7 +27,7 @@
 *                                                                                          *
 \******************************************************************************************/
 
-void DetectMadCatzCyborgControllers(hid_device_info* info, const std::string& name)
+void DetectMadCatzCyborgControllers(hid_device_info* info, const std::string& /*name*/)
 {
     hid_device* dev = hid_open_path(info->path);
     
